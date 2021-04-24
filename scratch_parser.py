@@ -88,6 +88,8 @@ def downloadImages():
 
     label_file_explorer.configure(text="Start downloading")
     def downloadImage(url, filename):
+        if len(filename) == 0:
+            return
         urllib.request.urlretrieve(url, save_directory + filename.replace('/','_'))
 
     with open(json_filename) as json_file:
