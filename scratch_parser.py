@@ -93,19 +93,21 @@ def downloadImages():
     with open(json_filename) as json_file:
         item_list = json.load(json_file)
 
+        option = image_filename_option.get()
+
         for item in item_list:
         
             if item.get("concept_art"):
-                filename = item["concept_art"].split('/')[-1] if image_filename_option == "original" else "{item}_concept.jpg".format(item=item["name(jp)"])
+                filename = item["concept_art"].split('/')[-1] if option == "original" else "{item}_concept.jpg".format(item=item[option])
                 downloadImage(item["concept_art"], filename)
             
             if item.get("image_url"):
-                filename = item["image_url"].split('/')[-1] if image_filename_option == "original" else "{item}.jpg".format(item=item["name(jp)"])
+                filename = item["image_url"].split('/')[-1] if option == "original" else "{item}.jpg".format(item=item[option])
                 downloadImage(item["image_url"], filename)
             
             if item.get("contents"):
                 for subitem in item["contents"]:
-                    filename = subitem["image_url"].split('/')[-1] if image_filename_option == "original" else "{item}.jpg".format(item=subitem["name(jp)"])
+                    filename = subitem["image_url"].split('/')[-1] if option == "original" else "{item}.jpg".format(item=subitem[option])
                     downloadImage(subitem["image_url"], filename)
     
     label_file_explorer.configure(text="Finish downloading")
@@ -128,7 +130,8 @@ button_select.grid(column = 1, row = 2)
 
 image_filename_option = tk.StringVar(m, "original")
 tk.Radiobutton(middleFrame, text = "Original", variable = image_filename_option, value = "original").pack(side = tk.LEFT)
-tk.Radiobutton(middleFrame, text = "JP Item Name", variable = image_filename_option, value = "jp_name").pack(side = tk.LEFT)
+tk.Radiobutton(middleFrame, text = "JP Item Name", variable = image_filename_option, value = "name(jp)").pack(side = tk.LEFT)
+tk.Radiobutton(middleFrame, text = "EN Item Name", variable = image_filename_option, value = "name(en)").pack(side = tk.LEFT)
 
 button_select = tk.Button(bottomFrame, text='Download Images', width=25, command=downloadImages)
 button_select.pack()
