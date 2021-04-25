@@ -7,6 +7,8 @@ import tkinter.filedialog
 import urllib.request
 import os
 import errno
+from multiprocessing import Pool
+from multiprocessing.dummy import Pool as ThreadPool
 
 def parseScratchHTML(input_file):
     try:
@@ -87,36 +89,54 @@ def downloadImages():
     save_directory = tk.filedialog.askdirectory() + '/'
 
     label_file_explorer.configure(text="Start downloading")
-    def downloadImage(url, filename):
-        if len(filename) == 0:
-            return
-        urllib.request.urlretrieve(url, save_directory + filename.replace('/','_'))
 
     with open(json_filename) as json_file:
         item_list = json.load(json_file)
 
         option = image_filename_option.get()
 
+        urls = list()
+
         for item in item_list:
         
             if item.get("concept_art"):
                 filename = item["concept_art"].split('/')[-1] if option == "original" else "{item}_concept.jpg".format(item=item[option])
-                downloadImage(item["concept_art"], filename)
+                urls.append({
+                    "url": item["concept_art"],
+                    "filename": save_directory + filename.replace('/','_')
+                })
             
             if item.get("image_url"):
                 filename = item["image_url"].split('/')[-1] if option == "original" else "{item}.jpg".format(item=item[option])
-                downloadImage(item["image_url"], filename)
+                urls.append({
+                    "url": item["image_url"],
+                    "filename": save_directory + filename.replace('/','_')
+                })
             
             if item.get("contents"):
                 for subitem in item["contents"]:
                     filename = subitem["image_url"].split('/')[-1] if option == "original" else "{item}.jpg".format(item=subitem[option])
-                    downloadImage(subitem["image_url"], filename)
+                    urls.append({
+                    "url": subitem["image_url"],
+                    "filename": save_directory + filename.replace('/','_')
+                })
+        
+        pool = ThreadPool(16)
+        pool.map(downloadImage, urls)
     
     label_file_explorer.configure(text="Finish downloading")
 
-
+def downloadImage(obj):
+    filename = obj.get("filename")
+    url = obj.get("url")
+    print("Start " + filename + " " + url)
+    if len(filename) == 0:
+        return
+    urllib.request.urlretrieve(url, filename)
+    print("End " + filename + " " + url)
 
 m = tk.Tk()
+m.title("PSO2 Scratch Parser")
 topFrame = tk.Frame(m)
 middleFrame = tk.Frame(m)
 bottomFrame = tk.Frame(m)
