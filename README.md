@@ -6,7 +6,9 @@ How to use:
 
 Prerequisite 
 1. Python 3.9
-2. Beautifulsoup4 - pip install beautifulsoup4 (as admin)
+
+Setup
+1. py -m pip install -r requirements.txt
 
 JSON File for Item Names and Image URL
 1. Go to Scratch website and save it as HTML file.
