@@ -4,82 +4,119 @@ import json
 import re
 import tkinter as tk 
 import tkinter.filedialog
-import urllib.request
+import tkinter.simpledialog
+import urllib.parse
+import requests
 import os
 import errno
 from multiprocessing import Pool
 from multiprocessing.dummy import Pool as ThreadPool
 
-def parseScratchHTML(input_file):
-    try:
-        with open(input_file) as html_file:
-            parse_list = list()
-            soup = BeautifulSoup(html_file, 'html.parser')
-            item_list = soup.find_all("dl", class_="item-list-l")
-            for item in item_list:
+def parseScratchHTML(input_data):
 
-                item_name = item.find("dt").get_text()
-                ahref_concept_art_url = item.find("a", title="設定画")
-                concept_art_url = ahref_concept_art_url.get('href') if ahref_concept_art_url else ""
-                genreAndRate = item.find_all("td")
+    parse_list = list()
+    soup = BeautifulSoup(input_data, 'html.parser')
 
-                box_contents = item.find("ul", class_="image")
+    # All items are in class "item-list-l"
+    item_list = soup.find_all("dl", class_="item-list-l")
 
-                if box_contents is not None:
-                    box_contents = box_contents.find_all("li")
-                    contents = list()
-                    for sub_item in box_contents:
-                        sub_item_name = re.findall("「(.*?)」", sub_item.get_text())[0]
-                        sub_item_genre = re.findall(r'\（(.*?)\）', sub_item.get_text())[0]
+    for item in item_list:
 
-                        ahref_subitem = item.find("a", title=sub_item_name)
-                        image_url = ahref_subitem.get('href') if ahref_subitem else ""
-                        contents.append({
-                            "name(jp)": sub_item_name,
-                            "name(en)": "",
-                            "image_url": image_url,
-                            "genre(jp)": sub_item_genre,
-                            "genre(en)": sub_item_genre
-                        })
+        # Item Name is in between "dt" tags
+        item_name = item.find("dt").get_text()
 
-                    parse_list.append({
-                        "name(jp)": item_name,
-                        "name(en)": "",
-                        "concept_art": concept_art_url,
-                        "genre(jp)": genreAndRate[0].get_text(),
-                        "genre(en)": genreAndRate[0].get_text(),
-                        "rate": genreAndRate[1].get_text(),
-                        "contents": contents
-                    })
-                else:
-                    ahref_item = item.find("a", title=item_name)
-                    image_url = ahref_item.get('href') if ahref_item else ""
-                    parse_list.append({
-                        "name(jp)": item_name,
-                        "name(en)": "",
-                        "image_url": image_url,
-                        "concept_art": concept_art_url,
-                        "genre(jp)": genreAndRate[0].get_text(),
-                        "genre(en)": genreAndRate[0].get_text(),
-                        "rate": genreAndRate[1].get_text()
-                    })
+        # Concept arts are location in "a" tags with title "設定画"
+        ahref_concept_art_url = item.find("a", title="設定画")
+        concept_art_url = ahref_concept_art_url.get('href') if ahref_concept_art_url else ""
 
-            return parse_list
-    except:
-        tk.messagebox.showerror(title="Parsing Failed", message="File parsing has failed")
+        # Contains item genre and pull rate
+        itemDetails = item.find_all("td")
 
-def button_selectAndParseHTMLFile():
-    filename = tk.filedialog.askopenfilename(initialdir = "/", title = "Select a File", filetypes = (("HTML", "*.html*"),("All Files", "*.*")))
+        # If the item is a set, it should have an unordered list with class "image"
+        item_set = item.find("ul", class_="image")
 
-    if len(filename) == 0:
+        if item_set is not None:
+            item_set = item_set.find_all("li")
+            contents = list()
+            
+            for sub_item in item_set:
+                sub_item_name = re.findall("「(.*?)」", sub_item.get_text())[0]
+                sub_item_genre = re.findall(r'\（(.*?)\）', sub_item.get_text())[0]
+
+                ahref_subitem = item.find("a", title=sub_item_name)
+                image_url = ahref_subitem.get('href') if ahref_subitem else ""
+                contents.append({
+                    "name(jp)": sub_item_name,
+                    "name(en)": "",
+                    "image_url": image_url,
+                    "genre(jp)": sub_item_genre,
+                    "genre(en)": sub_item_genre
+                })
+
+            parse_list.append({
+                "name(jp)": item_name,
+                "name(en)": "",
+                "concept_art": concept_art_url,
+                "genre(jp)": itemDetails[0].get_text(),
+                "genre(en)": itemDetails[0].get_text(),
+                "rate": itemDetails[1].get_text(),
+                "contents": contents
+            })
+        else:
+            ahref_item = item.find("a", title=item_name)
+            image_url = ahref_item.get('href') if ahref_item else ""
+            parse_list.append({
+                "name(jp)": item_name,
+                "name(en)": "",
+                "image_url": image_url,
+                "concept_art": concept_art_url,
+                "genre(jp)": itemDetails[0].get_text(),
+                "genre(en)": itemDetails[0].get_text(),
+                "rate": itemDetails[1].get_text()
+            })
+
+    return parse_list
+
+def button_parseURL():
+    url = tk.simpledialog.askstring("Scratch URL", "Input Scratch URL", parent=m)
+
+    if url is None:
         return
-
-    parse_list = parseScratchHTML(filename)
 
     output_filetypes = [("JSON", "*.json"),("All Files", "*.*")]
     output_filename = tk.filedialog.asksaveasfile(filetypes = output_filetypes, initialfile="scratch_data", defaultextension = output_filetypes)
 
-    json.dump(parse_list, output_filename, ensure_ascii=False, indent=4)
+    req = requests.get(url)
+    scratch_list = parseScratchHTML(req.content)
+
+    for item in scratch_list:
+        if item.get("image_url"):
+            item["image_url"] = urllib.parse.urljoin(url, item["image_url"])
+        if item.get("concept_art"):
+            item["concept_art"] = urllib.parse.urljoin(url, item["concept_art"])
+        if item.get("contents"):
+            for content_item in item.get("contents"):
+                if content_item.get("image_url"):
+                    content_item["image_url"] = urllib.parse.urljoin(url, content_item["image_url"])
+
+    json.dump(scratch_list, output_filename, ensure_ascii=False, indent=4)
+    output_filename.close()
+
+def button_parseHTMLfile():
+
+    filename = tk.filedialog.askopenfilename(initialdir = "/", title = "Select a File", filetypes = (("HTML", "*.html"),("All Files", "*.*")))
+
+    if not filename:
+        return
+    
+    output_filetypes = [("JSON", "*.json"),("All Files", "*.*")]
+    output_filename = tk.filedialog.asksaveasfile(filetypes = output_filetypes, initialfile="scratch_data", defaultextension = output_filetypes)
+
+    html_file = open(filename)
+
+    scartch_list = parseScratchHTML(html_file)
+
+    json.dump(scartch_list, output_filename, ensure_ascii=False, indent=4)
     output_filename.close()
 
     label_file_explorer.configure(text="Parsed: "+filename)
@@ -132,7 +169,11 @@ def downloadImage(obj):
     print("Start " + filename + " " + url)
     if len(filename) == 0:
         return
-    urllib.request.urlretrieve(url, filename)
+    
+    response = requests.get(url)
+    file = open(filename, "wb")
+    file.write(response.content)
+    file.close()
     print("End " + filename + " " + url)
 
 m = tk.Tk()
@@ -145,10 +186,12 @@ middleFrame.grid(row = 1)
 bottomFrame.grid(row = 2)
 
 label_file_explorer = tk.Label(topFrame, text = "No file has been selected", width = 100, height = 4, fg = "blue")
-label_file_explorer.grid(column = 1, row = 1)
+label_file_explorer.grid(column = 0, row = 1, columnspan=4)
 
-button_select = tk.Button(topFrame, text='Select HTML File', width=25, command=button_selectAndParseHTMLFile)
-button_select.grid(column = 1, row = 2)
+button_select = tk.Button(topFrame, text='Input Scratch URL', width=25, command=button_parseURL)
+button_select.grid(column = 1, row = 2, sticky=tk.E)
+button_select = tk.Button(topFrame, text='Select HTML File', width=25, command=button_parseHTMLfile)
+button_select.grid(column = 2, row = 2, sticky=tk.W)
 
 image_filename_option = tk.StringVar(m, "original")
 tk.Radiobutton(middleFrame, text = "Original", variable = image_filename_option, value = "original").pack(side = tk.LEFT)
