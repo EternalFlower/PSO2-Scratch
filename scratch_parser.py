@@ -152,11 +152,12 @@ def downloadImages():
             
             if item.get("contents"):
                 for subitem in item["contents"]:
-                    filename = subitem["image_url"].split('/')[-1] if option == "original" else "{item}.jpg".format(item=subitem[option])
-                    urls.append({
-                    "url": subitem["image_url"],
-                    "filename": save_directory + filename.replace('/','_')
-                })
+                    if subitem.get("image_url"):
+                        filename = subitem["image_url"].split('/')[-1] if option == "original" else "{item}.jpg".format(item=subitem[option])
+                        urls.append({
+                            "url": subitem["image_url"],
+                            "filename": save_directory + filename.replace('/','_')
+                        })
         
         pool = ThreadPool(16)
         pool.map(downloadImage, urls)
