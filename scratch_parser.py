@@ -40,8 +40,8 @@ def parseScratchHTML(input_data):
             contents = list()
             
             for sub_item in item_set:
-                sub_item_name = re.findall("「(.*?)」", sub_item.get_text())[0]
-                sub_item_genre = re.findall(r'\（(.*?)\）', sub_item.get_text())[0]
+                sub_item_name = re.findall("「(.*?)」", sub_item.get_text())[0] if re.findall("「(.*?)」", sub_item.get_text()) else ""
+                sub_item_genre = re.findall(r'\（(.*?)\）', sub_item.get_text())[0] if re.findall(r'\（(.*?)\）', sub_item.get_text()) else ""
 
                 ahref_subitem = item.find("a", title=sub_item_name)
                 image_url = ahref_subitem.get('href') if ahref_subitem else ""
