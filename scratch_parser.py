@@ -123,6 +123,10 @@ def button_parseHTMLfile():
 
 def downloadImages():
     json_filename = tk.filedialog.askopenfilename(initialdir = "/", title = "Select JSON", filetypes = (("JSON", "*.json"),("All Files", "*.*")))
+
+    if not json_filename:
+        return
+
     save_directory = tk.filedialog.askdirectory() + '/'
 
     label_file_explorer.configure(text="Start downloading")
